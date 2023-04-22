@@ -1,0 +1,69 @@
+import cv2
+import numpy as np
+
+
+lower_color_range = np.array([25, 50, 50])
+upper_color_range = np.array([90, 255, 255])
+
+kernel = np.ones((5,5),np.uint8)
+
+
+def detect_shape(c):
+    peri = cv2.arcLength(c, True)
+    approx = cv2.approxPolyDP(c, 0.04 * peri, True)
+    if len(approx) == 3:
+        return "Triangle"
+    elif len(approx) == 4:
+        (x, y, w, h) = cv2.boundingRect(approx)
+        aspectRatio = w / float(h)
+        if aspectRatio >= 0.95 and aspectRatio <= 1.05:
+            return "Square"
+        else:
+            return "Rectangle"
+    elif len(approx) == 5:
+        return "Pentagon"
+    else:
+        return "Circle"
+
+
+cap = cv2.VideoCapture(0)
+
+while True:
+    
+    ret, frame = cap.read()
+    
+
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+    
+   
+    mask = cv2.inRange(hsv, lower_color_range, upper_color_range)
+    
+    
+    mask = cv2.erode(mask, kernel, iterations = 1)
+    mask = cv2.dilate(mask, kernel, iterations = 1)
+    
+    
+    contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    
+    
+    for c in contours:
+        shape = detect_shape(c)
+        if cv2.contourArea(c) > 100:
+            
+            cv2.drawContours(frame, [c], 0, (0,255,0), 2)
+            
+          
+            (x, y), _ = cv2.minEnclosingCircle(c)
+            cv2.putText(frame, shape, (int(x)-30,int(y)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+            cv2.putText(frame, "Color: " + shape, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 2)
+            
+    
+    cv2.imshow('frame',frame)
+    
+  
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+        
+
+cap.release()
+cv2.destroyAllWindows()
